@@ -1,6 +1,7 @@
 package baidu
 
 import (
+	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"toolkits/tool"
 )
 
 var (
@@ -177,7 +177,7 @@ func (b *BaiduOcr) getFileContentAsBase64(path string) string {
 // 获取token
 func (b *BaiduOcr) getAccessToken() (token string, err error) {
 
-	md5String, _ := tool.Md5ByString(b.apiKey)
+	md5String, _ := md5ByString(b.apiKey)
 	tokenKey := "kpai:baiduocr:" + md5String
 	token, err = b.cache.Get(tokenKey)
 	if err != nil {
@@ -239,4 +239,14 @@ func (b *BaiduOcr) getAccessToken() (token string, err error) {
 		}
 	}
 	return token, nil
+}
+
+func md5ByString(str string) (string, error) {
+	m := md5.New()
+	_, err := io.WriteString(m, str)
+	if err != nil {
+		return "", err
+	}
+	arr := m.Sum(nil)
+	return fmt.Sprintf("%x", arr), nil
 }
