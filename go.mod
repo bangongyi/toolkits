@@ -1,4 +1,4 @@
-module toolkits
+module github.com/bangongyi/toolkits
 
 go 1.20
 
