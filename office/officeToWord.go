@@ -2,6 +2,8 @@ package office
 
 import (
 	"github.com/tealeg/xlsx"
+	"io/ioutil"
+	"log"
 )
 
 func ExcelToWord(location string) (word string, err error) {
@@ -19,5 +21,15 @@ func ExcelToWord(location string) (word string, err error) {
 			text += ""
 		}
 	}
+	return text, nil
+}
+
+func TxtToWord(location string) (word string, err error) {
+	content, err := ioutil.ReadFile(location)
+	if err != nil {
+		log.Fatal(err)
+	}
+	text := string(content)
+
 	return text, nil
 }
