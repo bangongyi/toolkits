@@ -1,11 +1,10 @@
 package office
 
 import (
+	"baliance.com/gooxml/document"
+	"baliance.com/gooxml/presentation"
 	"errors"
 	"github.com/tealeg/xlsx"
-	"github.com/unidoc/unioffice/common/license"
-	"github.com/unidoc/unioffice/document"
-	unipdflicense "github.com/unidoc/unipdf/v3/common/license"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,7 +12,7 @@ import (
 )
 
 // word文件转文字
-func WordToContent(key string, filePath string) (word string, fileSuffix string, FileSize int, err error) {
+func WordToContent(filePath string) (word string, fileSuffix string, FileSize int, err error) {
 	suffix, err := getSuffix(filePath)
 	if err != nil {
 		return "", "", 0, errors.New("获取前缀失败！")
@@ -21,16 +20,6 @@ func WordToContent(key string, filePath string) (word string, fileSuffix string,
 	size, err := countSize(filePath)
 	if err != nil {
 		return "", "", 0, errors.New("计算文件大小失败！")
-	}
-
-	err = unipdflicense.SetMeteredKey(key)
-	if err != nil {
-		return "", "", 0, errors.New("初始化key失败1！")
-	}
-	// This example requires both for unioffice and unipdf.
-	err = license.SetMeteredKey(key)
-	if err != nil {
-		return "", "", 0, errors.New("初始化key失败2！")
 	}
 
 	doc, err := document.Open(filePath)
@@ -52,7 +41,7 @@ func WordToContent(key string, filePath string) (word string, fileSuffix string,
 }
 
 // word地址文件转文字
-func WordUrlToContent(key string, url string) (word string, fileSuffix string, FileSize int, err error) {
+func WordUrlToContent(url string) (word string, fileSuffix string, FileSize int, err error) {
 	suffix, err := getSuffix(url)
 	if err != nil {
 		return "", "", 0, errors.New("获取前缀失败！")
@@ -66,16 +55,6 @@ func WordUrlToContent(key string, url string) (word string, fileSuffix string, F
 	size, err := countSize(filePath)
 	if err != nil {
 		return "", "", 0, errors.New("计算文件大小失败！")
-	}
-
-	err = unipdflicense.SetMeteredKey(key)
-	if err != nil {
-		return "", "", 0, errors.New("初始化key失败1！")
-	}
-	// This example requires both for unioffice and unipdf.
-	err = license.SetMeteredKey(key)
-	if err != nil {
-		return "", "", 0, errors.New("初始化key失败2！")
 	}
 
 	defer os.Remove(filePath)
@@ -155,6 +134,108 @@ func ExcelUrlToContent(url string) (word string, fileSuffix string, FileSize int
 				text += cell.String() + " "
 			}
 			text += ""
+		}
+	}
+
+	return text, suffix, size, nil
+}
+
+// ppt文件转文字
+func PptToContent(filePath string) (word string, fileSuffix string, FileSize int, err error) {
+	suffix, err := getSuffix(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("获取前缀失败！")
+	}
+	size, err := countSize(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("计算文件大小失败！")
+	}
+
+	ppt, err := presentation.Open(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("打开文件失败！")
+	}
+
+	var text string
+	for _, slide := range ppt.Slides() {
+		//所有的控件
+		for _, choice := range slide.X().CSld.SpTree.Choice {
+			if choice.Sp == nil {
+				continue
+			}
+			//一个文本框或一个控件
+			for _, sp := range choice.Sp {
+				if sp.TxBody == nil {
+					continue
+				}
+				//数据
+				for _, p := range sp.TxBody.P {
+					textrun := p.EG_TextRun
+					//所有的EG_TextRun中的数据组合起来是一段
+					for _, run := range textrun {
+						if run.R != nil {
+							text += run.R.T
+						}
+					}
+					if len(text) == 0 {
+						continue
+					}
+				}
+			}
+		}
+	}
+
+	return text, suffix, size, nil
+}
+
+// ppt地址文件转文字
+func PptUrlToContent(url string) (word string, fileSuffix string, FileSize int, err error) {
+	suffix, err := getSuffix(url)
+	if err != nil {
+		return "", "", 0, errors.New("获取前缀失败！")
+	}
+
+	filePath, err := saveFile(url, suffix)
+	if err != nil {
+		return "", "", 0, errors.New("文件保存在本地失败！")
+	}
+
+	size, err := countSize(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("计算文件大小失败！")
+	}
+
+	ppt, err := presentation.Open(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("打开文件失败！")
+	}
+
+	var text string
+	for _, slide := range ppt.Slides() {
+		//所有的控件
+		for _, choice := range slide.X().CSld.SpTree.Choice {
+			if choice.Sp == nil {
+				continue
+			}
+			//一个文本框或一个控件
+			for _, sp := range choice.Sp {
+				if sp.TxBody == nil {
+					continue
+				}
+				//数据
+				for _, p := range sp.TxBody.P {
+					textrun := p.EG_TextRun
+					//所有的EG_TextRun中的数据组合起来是一段
+					for _, run := range textrun {
+						if run.R != nil {
+							text += run.R.T
+						}
+					}
+					if len(text) == 0 {
+						continue
+					}
+				}
+			}
 		}
 	}
 
