@@ -1,15 +1,13 @@
 package baidu
 
 import (
-	"crypto/md5"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -60,118 +58,118 @@ func NewBaiduOcr(apiKey string, apiSecret string, cache Cache) (*BaiduOcr, error
 }
 
 // 图片转文字
-func (b *BaiduOcr) ImageToWord(image string) (word string, err error) {
+func (b *BaiduOcr) ImageToWord(filePath string) (word string, fileSuffix string, FileSize int, err error) {
+	suffix, err := getSuffix(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("获取前缀失败！")
+	}
+	size, err := countSize(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("计算文件大小失败！")
+	}
 
-	//image := "/Users/zhangsan/go/test.jpeg"
-	encode := b.getFileContentAsBase64(image)
+	encode := b.getFileContentAsBase64(filePath)
 	contextLen := len(encode)
 	if contextLen/1024/1024 > 8 {
-		return "", errors.New("文件大小不能大于8M")
+		return "", "", 0, errors.New("文件大小不能大于8M！")
 	}
 	payload := strings.NewReader("image=" + url.QueryEscape(encode) + "&detect_direction=false&detect_language=false&paragraph=false&probability=false")
 	str, err := b.commonFun(payload)
 	if err != nil {
-		return "", err
+		return "", "", 0, errors.New("word文档解析失败！")
 	}
 
-	return str, nil
+	return str, suffix, size, nil
 }
 
 // 图片地址转文字
-func (b *BaiduOcr) ImageUrlToWord(imageUrl string) (word string, err error) {
+func (b *BaiduOcr) ImageUrlToWord(imageUrl string) (word string, fileSuffix string, FileSize int, err error) {
+	suffix, err := getSuffix(imageUrl)
+	if err != nil {
+		return "", "", 0, errors.New("获取前缀失败！")
+	}
+
+	size, err := countImgSize(imageUrl)
+	if err != nil {
+		return "", "", 0, errors.New("获取图片大小失败！")
+	}
+
 	if len(imageUrl) > 1024 {
-		return "", errors.New("图片地址不能超过 1024 个字节")
+		return "", "", 0, errors.New("图片地址不能超过 1024 个字节")
 	}
 
 	encode := b.getFileContentAsBase64(imageUrl)
 	contextLen := len(encode)
 	if contextLen/1024/1024 > 8 {
-		return "", errors.New("文件大小不能大于8M")
+		return "", "", 0, errors.New("文件大小不能大于8M")
 	}
 	payload := strings.NewReader("url=" + url.QueryEscape(encode) + "&detect_direction=false&detect_language=false&paragraph=false&probability=false")
 	str, err := b.commonFun(payload)
 	if err != nil {
-		return "", err
+		return "", "", 0, errors.New("word文档解析失败！")
 	}
 
-	return str, nil
+	return str, suffix, size, nil
 }
 
 // pdf转文字
-func (b *BaiduOcr) PdfToWord(pdf string) (word string, err error) {
+func (b *BaiduOcr) PdfToWord(filePath string) (word string, fileSuffix string, FileSize int, err error) {
+	suffix, err := getSuffix(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("获取前缀失败！")
+	}
+	size, err := countSize(filePath)
+	if err != nil {
+		return "", "", 0, errors.New("计算文件大小失败！")
+	}
 
-	//pdf := "/Users/zhangsan/go/test.pdf"
-	encode := b.getFileContentAsBase64(pdf)
+	defer os.Remove(filePath)
+
+	encode := b.getFileContentAsBase64(filePath)
 	contextLen := len(encode)
 	if contextLen/1024/1024 > 8 {
-		return "", errors.New("文件大小不能大于8M")
+		return "", "", 0, errors.New("文件大小不能大于8M")
 	}
 	payload := strings.NewReader("pdf_file=" + url.QueryEscape(encode) + "&detect_direction=false&detect_language=false&paragraph=false&probability=false")
 
 	str, err := b.commonFun(payload)
 	if err != nil {
-		return "", err
+		return "", "", 0, errors.New("word文档解析失败！")
 	}
 
-	return str, nil
+	return str, suffix, size, nil
 }
 
-func (b *BaiduOcr) commonFun(payload *strings.Reader) (word string, err error) {
-	token, err := b.getAccessToken()
+// pdf转文字
+func (b *BaiduOcr) PdfUrlToWord(pdfUrl string) (word string, fileSuffix string, FileSize int, err error) {
+	suffix, err := getSuffix(pdfUrl)
 	if err != nil {
-		return "", err
+		return "", "", 0, errors.New("获取前缀失败！")
 	}
 
-	requestUrl := fmt.Sprintf(transformUrlBaidu, token)
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", requestUrl, payload)
-
+	filePath, err := saveFile(pdfUrl, suffix)
 	if err != nil {
-		return "", err
+		return "", "", 0, errors.New("文件保存在本地失败！")
 	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Accept", "application/json")
 
-	res, err := client.Do(req)
+	size, err := countSize(filePath)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return "", "", 0, errors.New("计算文件大小失败！")
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			return
-		}
-	}(res.Body)
 
-	body, err := ioutil.ReadAll(res.Body)
+	encode := b.getFileContentAsBase64(filePath)
+	contextLen := len(encode)
+	if contextLen/1024/1024 > 8 {
+		return "", "", 0, errors.New("文件大小不能大于8M")
+	}
+	payload := strings.NewReader("pdf_file=" + url.QueryEscape(encode) + "&detect_direction=false&detect_language=false&paragraph=false&probability=false")
+
+	str, err := b.commonFun(payload)
 	if err != nil {
-		return
-	}
-	resBody1 := BodyResultResponse{}
-	err = json.Unmarshal(body, &resBody1)
-	if err != nil {
-		return
+		return "", "", 0, errors.New("word文档解析失败！")
 	}
 
-	var str string
-	for _, val := range resBody1.WordsResult {
-		str += val.Words + ","
-	}
-	str = strings.TrimRight(str, ",")
-
-	return str, nil
-}
-
-// base64编码后进行urlEncode
-func (b *BaiduOcr) getFileContentAsBase64(path string) string {
-	srcByte, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	return base64.StdEncoding.EncodeToString(srcByte)
+	return str, suffix, size, nil
 }
 
 // 获取token
@@ -239,14 +237,4 @@ func (b *BaiduOcr) getAccessToken() (token string, err error) {
 		}
 	}
 	return token, nil
-}
-
-func md5ByString(str string) (string, error) {
-	m := md5.New()
-	_, err := io.WriteString(m, str)
-	if err != nil {
-		return "", err
-	}
-	arr := m.Sum(nil)
-	return fmt.Sprintf("%x", arr), nil
 }
