@@ -103,7 +103,7 @@ func (b *BaiduOcr) ImageUrlToWord(imageUrl string) (word string, fileSuffix stri
 	if contextLen/1024/1024 > 8 {
 		return "", "", 0, errors.New("文件大小不能大于8M")
 	}
-	payload := strings.NewReader("url=" + url.QueryEscape(encode) + "&detect_direction=false&detect_language=false&paragraph=false&probability=false")
+	payload := strings.NewReader("url=" + url.QueryEscape(imageUrl) + "&detect_direction=false&detect_language=false&paragraph=false&probability=false")
 	str, err := b.commonFun(payload)
 	if err != nil {
 		return "", "", 0, errors.New("word文档解析失败！")
