@@ -103,6 +103,9 @@ func ExcelToContent(filePath string) (word []excelRes, fileSuffix string, FileSi
 				continue
 			}
 			per := excelRes{}
+			if len(row.Cells) == 0 {
+    				continue
+   			}
 			per.Question = row.Cells[0].String()
 			per.Answer = row.Cells[1].String()
 			list = append(list, per)
@@ -142,6 +145,9 @@ func ExcelUrlToContent(url string) (word []excelRes, fileSuffix string, FileSize
 				continue
 			}
 			per := excelRes{}
+			if len(row.Cells) == 0 {
+    				continue
+   			}
 			per.Question = row.Cells[0].String()
 			per.Answer = row.Cells[1].String()
 			list = append(list, per)
